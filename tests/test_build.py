@@ -31,6 +31,7 @@ def test_flagged_event_is_all_day_with_note():
     assert first.decoded("dtstart") == date(2026, 10, 24)
     assert "time TBD" in str(first["summary"])
     assert "Time TBA" in str(first["description"])
+    assert "Tickets: https://www.ticketweb.com" in str(first["description"])
 
 
 def test_same_events_give_same_file():

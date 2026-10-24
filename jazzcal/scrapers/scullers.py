@@ -5,6 +5,7 @@ WordPress plugin (MusicIDB) asks the site's server for the event list as HTML,
 15 shows per page. We make that same request and read the HTML.
 """
 
+import copy
 import logging
 import re
 import time
@@ -44,6 +45,31 @@ _TIME_GROUP = re.compile(
 )
 _CLOCK = re.compile(r"(\d{1,2})(?::(\d{2}))?")
 
+# Lineup lines like "Tim Ray-piano", "BENITO GONZALEZ – PIANO", "Mike Tucker/tenor sax".
+_INSTRUMENT = (
+    r"(?:(?:solo|tenor|alto|baritone|soprano|upright|electric|acoustic)\s+)?"
+    r"(?:piano|keys|keyboards?|organ|bass|drums?|percussion|sax(?:ophone)?s?|trumpet"
+    r"|flugelhorn|trombone|guitar|vocals?|voice|vibes|vibraphone|flute|clarinet|violin"
+    r"|cello|harmonica)"
+)
+_LINEUP = re.compile(
+    rf"^(?P<name>.{{2,40}}?)\s*[-–—:/]\s*(?P<instrument>{_INSTRUMENT}(?:\s*(?:&|and|,|/)\s*{_INSTRUMENT})*)$",
+    re.I,
+)
+# Seating rules, refund policy and similar text that every listing repeats.
+_POLICY = re.compile(
+    r"GA sections?|seated by host|first come|special (?:seating|needs|requirements|accommodations)"
+    r"|box office|non-refundable|cannot be exchanged|purchase all seats|please note|please call"
+    r"|Scullers Jazz Club Presents",
+    re.I,
+)
+_BULLETS = "–—-•*"
+_LINE_BREAK = "\x00"
+_BREAK_TAGS = ["br", "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6"]
+_SENTENCE_END = re.compile(r"[.!?][\"”’]?(?=\s|$)")
+_ABBREVIATION = re.compile(r"\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|St|vs|feat|No|[A-Z])\.$")
+_DATELINE = re.compile(r"^[A-Z][a-z]+(?: [A-Z][a-z]+)*, [A-Z]{2}\b")  # "Boston, MA Friday..."
+
 
 def clean_title(raw: str) -> str:
     """Remove promo text like "Tickets on Sale Now" but keep real subtitles."""
@@ -81,25 +107,100 @@ def _format_time(t: dtime) -> str:
     return f"{hour}{minutes}{'pm' if t.hour >= 12 else 'am'}"
 
 
+def _description_lines(description) -> list[str]:
+    """Split the venue's description into clean lines.
+
+    Line breaks come only from real paragraph and <br> breaks, not from bold or
+    styled words, and extra spaces are removed.
+    """
+    if description is None:
+        return []
+    description = copy.copy(description)  # leave the parsed page untouched
+    for tag in description.find_all(_BREAK_TAGS):
+        tag.insert_before(_LINE_BREAK)
+        if tag.name != "br":
+            tag.insert_after(_LINE_BREAK)
+    lines = (" ".join(part.split()) for part in description.get_text("").split(_LINE_BREAK))
+    return [line for line in lines if line]
+
+
+def _first_sentence(paragraphs: list[str]) -> str | None:
+    """The first sentence of the first real paragraph, or None if it isn't clear."""
+    paragraph = next(
+        (p for p in paragraphs if len(p) >= 60 and not p.endswith(":") and p[0] not in _BULLETS),
+        None,  # skip headings and bullet points
+    )
+    if paragraph is None or paragraph[0] in "“\"‘'" or _DATELINE.match(paragraph):
+        return None  # missing, a review quote, or a press-release header
+    for match in _SENTENCE_END.finditer(paragraph):
+        sentence = paragraph[: match.end()]
+        if _ABBREVIATION.search(sentence.rstrip("\"”’")):
+            continue
+        return sentence if 30 <= len(sentence) <= 250 else None
+    return None
+
+
+def _showtimes_line(times: list[dtime] | None, subtitle_text: str) -> str:
+    if times is None:
+        said = f" (site says “{subtitle_text}”)" if subtitle_text else ""
+        return f"Show time not listed{said}, check the venue"
+    if len(times) == 1:
+        return f"One show at {_format_time(times[0])}"
+    parts = [_format_time(t) for t in times]
+    if len({t.hour >= 12 for t in times}) == 1:
+        parts = [p[:-2] for p in parts[:-1]] + parts[-1:]  # "7 & 9pm", not "7pm & 9pm"
+    return "Shows at " + ", ".join(parts[:-1]) + " & " + parts[-1]
+
+
+def _event_notes(title, description, times, subtitle_text, ticket_url) -> str:
+    """Short notes: who's playing, showtimes, one sentence, show page, tickets."""
+    lineup, paragraphs = [], []
+    for line in _description_lines(description):
+        if _POLICY.search(line):
+            continue
+        if match := _LINEUP.match(line):
+            lineup.append(f"{match['name']} ({match['instrument'].lower()})")
+        elif (
+            paragraphs
+            and len(paragraphs[-1]) >= 40
+            and paragraphs[-1][0] not in _BULLETS
+            and not paragraphs[-1].endswith((".", "!", "?", ":", "\"", "”", ")"))
+        ):
+            paragraphs[-1] += " " + line  # sentence was split by a stray line break
+        else:
+            paragraphs.append(line)
+
+    notes = [f"{title}: {', '.join(lineup)}" if lineup else title]
+    notes.append(_showtimes_line(times, subtitle_text))
+    if sentence := _first_sentence(paragraphs):
+        notes.append(sentence)
+    notes.append(f"Scullers calendar: {CALENDAR_URL}")
+    if ticket_url:
+        notes.append(f"Tickets: {ticket_url}")
+    return "\n".join(notes)
+
+
 def _parse_listing(li) -> list[Event]:
     event_id = li["id"].removeprefix("event-")
     title = clean_title(li.select_one(".titleofevent a").get_text(" ", strip=True))
     day = datetime.strptime(li.select_one("h3.date")["title"], "%a %b %d, %Y").date()
 
     link = li.select_one("a.TicketLink") or li.select_one(".eventPosterArea a")
-    description = li.select_one(".eventDescription")
+    ticket_url = link["href"] if link else None
     subtitle = li.select_one(".subtitleEvent")
     subtitle_text = subtitle.get_text(" ", strip=True) if subtitle else ""
+    times = parse_show_times(subtitle_text)
 
     common = dict(
         venue=VENUE,
         address=ADDRESS,
-        url=link["href"] if link else CALENDAR_URL,
-        description=description.get_text("\n", strip=True) if description else "",
+        url=ticket_url or CALENDAR_URL,
+        description=_event_notes(
+            title, li.select_one(".eventDescription"), times, subtitle_text, ticket_url
+        ),
         source="scullers",
     )
 
-    times = parse_show_times(subtitle_text)
     if times is None:
         flag = f"Couldn't read the show time from {subtitle_text!r}. Check {CALENDAR_URL}"
         log.warning("Scullers event %s (%s): %s", event_id, title, flag)

@@ -68,7 +68,15 @@ def test_parse_saved_page():
     assert first.start == datetime(2026, 10, 24, 19, 0, tzinfo=BOSTON)
     assert first.uid == "scullers-75733-1900@boston-jazz-calendar"
     assert first.url.startswith("https://www.ticketweb.com/event/the-tim-ray-trio")
-    assert "Tim Ray-piano" in first.description
+    assert first.description == (
+        "TIM RAY TRIO feat EDMAR COLON: Tim Ray (piano), Ehud Ettun (bass), "
+        "Mark Walker (drums), Edmar Colon (saxophone)\n"
+        "One show at 7pm\n"
+        "Tim Ray is perhaps best known as Tony Bennett’s most recent pianist and musical "
+        "director, appearing in concerts with him until his retirement from singing in 2020.\n"
+        "Scullers calendar: https://scullersjazz.com/calendar/\n"
+        "Tickets: https://www.ticketweb.com/event/the-tim-ray-trio-plus-scullers-jazz-club-tickets/15017013?pl=scullers"
+    )
 
 
 def test_two_sets_become_two_entries():
@@ -134,3 +142,50 @@ def test_scrape_stops_after_last_page():
     assert len(session.posts) == 1  # total pages is 1, so only one list request
     assert session.posts[0]["security"] == "d53b230c15"
     assert "boston-jazz-calendar" in session.headers["User-Agent"]
+
+
+def _notes(title_part):
+    return next(e.description for e in scullers.parse_events(PAGE1_HTML) if title_part in e.title)
+
+
+def test_notes_are_short_with_no_policy_text():
+    for event in scullers.parse_events(PAGE1_HTML):
+        lines = event.description.split("\n")
+        assert 4 <= len(lines) <= 5
+        assert "refundable" not in event.description
+        assert "GA sections" not in event.description
+
+
+def test_notes_show_both_sets():
+    assert _notes("CYRUS CHESTNUT").split("\n")[1] == "Shows at 7 & 9pm"
+
+
+def test_notes_fix_odd_line_breaks():
+    # The venue wraps this sentence across lines and bolds the name.
+    assert "Steven Feifke is a GRAMMY Award winning bandleader, composer, and arranger." in _notes("FEIFKE")
+
+
+def test_notes_lineup_written_different_ways():
+    assert _notes("TWO TUCKERS").split("\n")[0].endswith(
+        ": Mike Tucker (tenor sax), Tucker Antell (tenor sax), Adam Birnbaum (piano)"
+    )
+    assert "BUSTER WILLIAMS (bass)" in _notes("BENITO GONZALEZ")
+
+
+def test_notes_skip_sentence_when_unclear():
+    # Only review quotes in the description, so no sentence line.
+    assert len(_notes("Charlie Ballantine").split("\n")) == 4
+    # Press-release header ("Boston, MA Friday...") instead of a clear sentence.
+    assert len(_notes("TWO TUCKERS").split("\n")) == 4
+    # No description at all.
+    assert len(_notes("DUANE EUBANKS").split("\n")) == 4
+
+
+def test_notes_skip_bullet_points_when_picking_sentence():
+    assert _notes("SHAWNN").split("\n")[2].startswith("Shawnn has toured all over the world")
+
+
+def test_notes_for_unreadable_time():
+    html = PAGE1_HTML.replace("One Show at 7pm", "Time TBA", 1)
+    notes = scullers.parse_events(html)[0].description
+    assert notes.split("\n")[1] == "Show time not listed (site says “Time TBA”), check the venue"

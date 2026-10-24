@@ -24,20 +24,17 @@ def to_ics(events: list[Event], now: datetime | None = None) -> bytes:
         item.add("uid", event.uid)
         item.add("dtstamp", now)
         item.add("location", f"{event.venue}, {event.address}")
-        description = event.description
         if event.flag:
             # Unreadable time: show as an all-day entry so nothing is made up.
             item.add("summary", f"{event.title} (time TBD)")
             item.add("dtstart", event.start)
-            description = f"{event.flag}\n\n{description}"
         else:
             item.add("summary", event.title)
             item.add("dtstart", event.start)
             item.add("dtend", event.start + SET_LENGTH)
         if event.url:
             item.add("url", event.url)
-            description = f"{description}\n\nTickets: {event.url}"
-        item.add("description", description.strip())
+        item.add("description", event.description)
         cal.add_component(item)
 
     # Only describe Boston's daylight-saving rules for the years we need.
