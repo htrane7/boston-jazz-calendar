@@ -1,0 +1,60 @@
+name: Publish calendar
+
+on:
+  schedule:
+    # Every Monday at 11:00 UTC (7am Boston time in summer, 6am in winter).
+    - cron: "0 11 * * 1"
+  # Adds a "Run workflow" button on the Actions tab for running it by hand.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two publishes at once.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v5
+
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install libraries
+        run: pip install ".[dev]"
+
+      - name: Run tests
+        run: python -m pytest
+
+      - name: Scrape venues and build the calendar
+        run: python -m jazzcal.build
+
+      - name: Set up GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Package the calendar for Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: output
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

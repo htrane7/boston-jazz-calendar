@@ -5,6 +5,7 @@ description = "Collect Boston jazz concerts into one calendar file."
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.12",
+    "icalendar>=6.1",
     "requests>=2.31",
 ]
 

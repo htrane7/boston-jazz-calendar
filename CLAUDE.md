@@ -12,6 +12,11 @@ tests are in `tests/fixtures/`. Venues so far: Scullers.
 
 - Run tests: `python3 -m pytest`
 - Try the Scullers scraper on the live site: `python3 -m jazzcal.scrapers.scullers`
+- Build the calendar from all venues: `python3 -m jazzcal.build` (writes `output/boston-jazz.ics`)
+
+GitHub Actions (`.github/workflows/publish-calendar.yml`) runs the build every
+Monday and publishes the file to GitHub Pages. New venues go in `SCRAPERS` in
+`jazzcal/build.py`.
 
 ## Key rules
 
