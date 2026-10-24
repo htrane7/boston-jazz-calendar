@@ -1,0 +1,11 @@
+# Your decisions about Berklee events the scraper wasn't sure about.
+# Paste an event's page address (from output/review.txt) into one of the lists.
+#
+# include: always put it in the calendar
+# exclude: always leave it out
+
+include = [
+]
+
+exclude = [
+]

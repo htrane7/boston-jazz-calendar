@@ -20,3 +20,6 @@ class Event:
     source: str = ""
     # Set when something needs a human to check, e.g. an unreadable show time.
     flag: str | None = None
+    # Why this event is held back for you to decide on. Held-back events stay
+    # out of the calendar and are listed in the review file instead.
+    review: str | None = None

@@ -6,7 +6,13 @@ Collect jazz concerts from Boston venues into one calendar file (`.ics`) that
 people can subscribe to.
 
 Scrapers live in `jazzcal/scrapers/` (one file per venue). Saved web pages for
-tests are in `tests/fixtures/`. Venues so far: Scullers.
+tests are in `tests/fixtures/`. Venues so far: Scullers, Berklee.
+
+Berklee has no genre labels, so `jazzcal/scrapers/berklee.py` sorts events by
+keywords: jazz styles (wide net) played by faculty or visiting artists go in the
+calendar; student shows are skipped; unsure ones go to `output/review.txt`. The
+user's always-include/exclude decisions live in `choices/berklee.toml`.
+Berklee's robots.txt asks for 10 seconds between requests.
 
 ## Commands
 

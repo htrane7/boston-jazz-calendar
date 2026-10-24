@@ -15,6 +15,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from jazzcal.event import BOSTON, Event
+from jazzcal.text import BULLETS, first_sentence, format_time
 
 log = logging.getLogger(__name__)
 
@@ -63,12 +64,8 @@ _POLICY = re.compile(
     r"|Scullers Jazz Club Presents",
     re.I,
 )
-_BULLETS = "–—-•*"
 _LINE_BREAK = "\x00"
 _BREAK_TAGS = ["br", "p", "div", "li", "h1", "h2", "h3", "h4", "h5", "h6"]
-_SENTENCE_END = re.compile(r"[.!?][\"”’]?(?=\s|$)")
-_ABBREVIATION = re.compile(r"\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|St|vs|feat|No|[A-Z])\.$")
-_DATELINE = re.compile(r"^[A-Z][a-z]+(?: [A-Z][a-z]+)*, [A-Z]{2}\b")  # "Boston, MA Friday..."
 
 
 def clean_title(raw: str) -> str:
@@ -101,12 +98,6 @@ def parse_show_times(text: str) -> list[dtime] | None:
     return sorted(set(times)) or None
 
 
-def _format_time(t: dtime) -> str:
-    hour = t.hour % 12 or 12
-    minutes = f":{t.minute:02d}" if t.minute else ""
-    return f"{hour}{minutes}{'pm' if t.hour >= 12 else 'am'}"
-
-
 def _description_lines(description) -> list[str]:
     """Split the venue's description into clean lines.
 
@@ -124,29 +115,13 @@ def _description_lines(description) -> list[str]:
     return [line for line in lines if line]
 
 
-def _first_sentence(paragraphs: list[str]) -> str | None:
-    """The first sentence of the first real paragraph, or None if it isn't clear."""
-    paragraph = next(
-        (p for p in paragraphs if len(p) >= 60 and not p.endswith(":") and p[0] not in _BULLETS),
-        None,  # skip headings and bullet points
-    )
-    if paragraph is None or paragraph[0] in "“\"‘'" or _DATELINE.match(paragraph):
-        return None  # missing, a review quote, or a press-release header
-    for match in _SENTENCE_END.finditer(paragraph):
-        sentence = paragraph[: match.end()]
-        if _ABBREVIATION.search(sentence.rstrip("\"”’")):
-            continue
-        return sentence if 30 <= len(sentence) <= 250 else None
-    return None
-
-
 def _showtimes_line(times: list[dtime] | None, subtitle_text: str) -> str:
     if times is None:
         said = f" (site says “{subtitle_text}”)" if subtitle_text else ""
         return f"Show time not listed{said}, check the venue"
     if len(times) == 1:
-        return f"One show at {_format_time(times[0])}"
-    parts = [_format_time(t) for t in times]
+        return f"One show at {format_time(times[0])}"
+    parts = [format_time(t) for t in times]
     if len({t.hour >= 12 for t in times}) == 1:
         parts = [p[:-2] for p in parts[:-1]] + parts[-1:]  # "7 & 9pm", not "7pm & 9pm"
     return "Shows at " + ", ".join(parts[:-1]) + " & " + parts[-1]
@@ -163,7 +138,7 @@ def _event_notes(title, description, times, subtitle_text, ticket_url) -> str:
         elif (
             paragraphs
             and len(paragraphs[-1]) >= 40
-            and paragraphs[-1][0] not in _BULLETS
+            and paragraphs[-1][0] not in BULLETS
             and not paragraphs[-1].endswith((".", "!", "?", ":", "\"", "”", ")"))
         ):
             paragraphs[-1] += " " + line  # sentence was split by a stray line break
@@ -172,7 +147,7 @@ def _event_notes(title, description, times, subtitle_text, ticket_url) -> str:
 
     notes = [f"{title}: {', '.join(lineup)}" if lineup else title]
     notes.append(_showtimes_line(times, subtitle_text))
-    if sentence := _first_sentence(paragraphs):
+    if sentence := first_sentence(paragraphs):
         notes.append(sentence)
     notes.append(f"Scullers calendar: {CALENDAR_URL}")
     if ticket_url:
@@ -211,7 +186,7 @@ def _parse_listing(li) -> list[Event]:
         Event(
             uid=f"scullers-{event_id}-{t:%H%M}@boston-jazz-calendar",
             # With two sets, say which one so the entries are easy to tell apart.
-            title=f"{title} ({_format_time(t)} show)" if len(times) > 1 else title,
+            title=f"{title} ({format_time(t)} show)" if len(times) > 1 else title,
             start=datetime.combine(day, t, tzinfo=BOSTON),
             **common,
         )
