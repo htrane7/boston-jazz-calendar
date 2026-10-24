@@ -3,7 +3,15 @@
 ## Goal
 
 Collect jazz concerts from Boston venues into one calendar file (`.ics`) that
-people can subscribe to. The project is just starting, so there's no code yet.
+people can subscribe to.
+
+Scrapers live in `jazzcal/scrapers/` (one file per venue). Saved web pages for
+tests are in `tests/fixtures/`. Venues so far: Scullers.
+
+## Commands
+
+- Run tests: `python3 -m pytest`
+- Try the Scullers scraper on the live site: `python3 -m jazzcal.scrapers.scullers`
 
 ## Key rules
 
