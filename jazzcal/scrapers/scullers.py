@@ -15,7 +15,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from jazzcal.event import BOSTON, Event
-from jazzcal.text import BULLETS, first_sentence, format_time
+from jazzcal.text import BULLETS, INSTRUMENT, first_sentence, format_time
 
 log = logging.getLogger(__name__)
 
@@ -47,14 +47,8 @@ _TIME_GROUP = re.compile(
 _CLOCK = re.compile(r"(\d{1,2})(?::(\d{2}))?")
 
 # Lineup lines like "Tim Ray-piano", "BENITO GONZALEZ – PIANO", "Mike Tucker/tenor sax".
-_INSTRUMENT = (
-    r"(?:(?:solo|tenor|alto|baritone|soprano|upright|electric|acoustic)\s+)?"
-    r"(?:piano|keys|keyboards?|organ|bass|drums?|percussion|sax(?:ophone)?s?|trumpet"
-    r"|flugelhorn|trombone|guitar|vocals?|voice|vibes|vibraphone|flute|clarinet|violin"
-    r"|cello|harmonica)"
-)
 _LINEUP = re.compile(
-    rf"^(?P<name>.{{2,40}}?)\s*[-–—:/]\s*(?P<instrument>{_INSTRUMENT}(?:\s*(?:&|and|,|/)\s*{_INSTRUMENT})*)$",
+    rf"^(?P<name>.{{2,40}}?)\s*[-–—:/]\s*(?P<instrument>{INSTRUMENT}(?:\s*(?:&|and|,|/)\s*{INSTRUMENT})*)$",
     re.I,
 )
 # Seating rules, refund policy and similar text that every listing repeats.

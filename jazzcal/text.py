@@ -8,6 +8,14 @@ _SENTENCE_END = re.compile(r"[.!?][\"”’]?(?=\s|$)")
 _ABBREVIATION = re.compile(r"\b(?:Mr|Mrs|Ms|Dr|Jr|Sr|St|vs|feat|No|[A-Z])\.$")
 _DATELINE = re.compile(r"^[A-Z][a-z]+(?: [A-Z][a-z]+)*, [A-Z]{2}\b")  # "Boston, MA Friday..."
 
+# Instrument names, for spotting lineup lines like "Tim Ray-piano".
+INSTRUMENT = (
+    r"(?:(?:solo|tenor|alto|baritone|soprano|upright|electric|acoustic)\s+)?"
+    r"(?:piano|keys|keyboards?|organ|bass|drums?(?: set)?|percussion|sax(?:ophone)?s?|trumpet"
+    r"|flugelhorn|trombone|guitar|vocals?|voice|vibes|vibraphone|flute|clarinet|violin"
+    r"|cello|harmonica|synth(?:esizer)?s?|tenor|alto|baritone|soprano)"
+)
+
 
 def format_time(t: dtime) -> str:
     """7pm, 9:30pm, 11am."""

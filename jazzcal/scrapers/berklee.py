@@ -10,15 +10,14 @@ review instead of guessed.
 import logging
 import re
 import time
-import tomllib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
 from bs4 import BeautifulSoup
 
+from jazzcal.choices import CHOICES_DIR, load_choices
 from jazzcal.event import BOSTON, Event
 from jazzcal.text import first_sentence, format_time
 
@@ -29,7 +28,7 @@ USER_AGENT = "boston-jazz-calendar/0.1 (personal concert calendar)"
 REQUEST_DELAY = 10  # seconds between requests; Berklee's robots.txt asks for 10
 WEEKS_AHEAD = 6  # about 20 pages, so a run takes 3-4 minutes
 MAX_PAGES = 40  # safety stop so a site bug can't make us loop forever
-CHOICES_FILE = Path(__file__).resolve().parents[2] / "choices" / "berklee.toml"
+CHOICES_FILE = CHOICES_DIR / "berklee.toml"
 
 # Not concerts: skipped no matter what.
 _SKIP_TITLE = re.compile(r"open mic|admissions?\b|info(?:rmation)? session|audition|campus tour", re.I)
@@ -152,18 +151,6 @@ def classify(listing: Listing) -> tuple[str, str]:
     return "skip", "not jazz"
 
 
-def load_choices(path: Path = CHOICES_FILE) -> tuple[set[str], set[str]]:
-    """Event pages you've said to always include or always leave out."""
-    if not path.exists():
-        return set(), set()
-    data = tomllib.loads(path.read_text())
-
-    def urls(key):
-        return {url.strip().rstrip("/") for url in data.get(key, [])}
-
-    return urls("include"), urls("exclude")
-
-
 def _event_notes(listing: Listing) -> str:
     """Short notes: who's playing, start time, one sentence, event page, tickets."""
     notes = [listing.title, f"Starts at {format_time(listing.start.time())}"]
@@ -194,7 +181,7 @@ def to_event(listing: Listing, review: str | None = None) -> Event:
 
 def select_events(listings: list[Listing], choices=None) -> list[Event]:
     """Jazz shows by faculty or visiting artists, plus held-back maybes."""
-    include, exclude = choices if choices is not None else load_choices()
+    include, exclude = choices if choices is not None else load_choices(CHOICES_FILE)
     events = {}
     for listing in listings:
         key = listing.url.rstrip("/")

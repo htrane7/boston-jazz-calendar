@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from jazzcal.ics import to_ics
-from jazzcal.scrapers import berklee, scullers
+from jazzcal.scrapers import berklee, lilypad, scullers
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +19,7 @@ REVIEW_FILE = Path("output/review.txt")
 SCRAPERS = {
     "Scullers": scullers.scrape,
     "Berklee": berklee.scrape,
+    "Lilypad": lilypad.scrape,
 }
 
 
@@ -41,14 +42,14 @@ def review_text(held_back) -> str:
     lines = [
         "Events held back for you to decide on. They are NOT in the calendar.",
         "To include or exclude one for good, paste its page address into",
-        "choices/berklee.toml.",
+        "that venue's file in choices/ (for example choices/berklee.toml).",
         "",
     ]
     if not held_back:
         lines.append("Nothing to review this week.")
     for event in sorted(held_back, key=lambda e: e.start):
         lines += [
-            f"{event.start:%a %b %d, %-I:%M%p} | {event.title}",
+            f"{event.start:%a %b %d, %-I:%M%p} | {event.title} ({event.venue})",
             f"  Why: {event.review}",
             f"  Page: {event.url}",
             "",
