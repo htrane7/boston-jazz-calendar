@@ -6,7 +6,8 @@ Collect jazz concerts from Boston venues into one calendar file (`.ics`) that
 people can subscribe to.
 
 Scrapers live in `jazzcal/scrapers/` (one file per venue). Saved web pages for
-tests are in `tests/fixtures/`. Venues so far: Scullers, Berklee, Lilypad.
+tests are in `tests/fixtures/`. Venues so far: Scullers, Berklee, Lilypad, Rockport (Shalin Liu),
+Regattabar, Groton Hill.
 
 Berklee has no genre labels, so `jazzcal/scrapers/berklee.py` sorts events by
 keywords: jazz styles (wide net) played by faculty or visiting artists go in the
@@ -18,6 +19,14 @@ Lilypad tags each show with genres; Jazz, Latin Jazz, Fusion and Improvisation
 go in. Untagged shows that mention jazz go to `output/review.txt`, and your
 decisions go in `choices/lilypad.toml`. The start time comes from the
 description ("8pm doors / 8:30 start"), since the listed time is often doors.
+
+Rockport: shows in the ticket site's "Jazz/R&B/Soul" filter, plus any whose
+description says jazz.
+
+Regattabar and Groton Hill are read from Jazz Near You (`jazzcal/jazznearyou.py`),
+because TicketWeb's terms forbid scraping and Groton Hill's site blocks bots.
+Don't try to get around those blocks. NEC is skipped for the same reason
+(Cloudflare bot check).
 
 ## Commands
 

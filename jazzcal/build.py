@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from jazzcal.ics import to_ics
-from jazzcal.scrapers import berklee, lilypad, scullers
+from jazzcal.scrapers import berklee, grotonhill, lilypad, regattabar, rockport, scullers
 
 log = logging.getLogger(__name__)
 
@@ -20,6 +20,9 @@ SCRAPERS = {
     "Scullers": scullers.scrape,
     "Berklee": berklee.scrape,
     "Lilypad": lilypad.scrape,
+    "Rockport": rockport.scrape,
+    "Regattabar": regattabar.scrape,
+    "Groton Hill": grotonhill.scrape,
 }
 
 
